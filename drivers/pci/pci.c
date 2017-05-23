@@ -3712,39 +3712,40 @@ EXPORT_SYMBOL_GPL(pci_intx);
  * pci_intx_mask_supported - probe for INTx masking support
  * @dev: the PCI device to operate on
  *
- * Check if the device dev support INTx masking via the config space
+ * Check if the device dev supports INTx masking via the config space
  * command word.
  */
 bool pci_intx_mask_supported(struct pci_dev *dev)
 {
-	bool mask_supported = false;
-	u16 orig, new;
+	u16 orig, toggle, new;
 
+	/*
+	 * If device doesn't support this feature though it could pass the test.
+	 */
 	if (dev->broken_intx_masking)
 		return false;
 
 	pci_cfg_access_lock(dev);
 
+	/*
+	 * Perform the test.
+	 */
 	pci_read_config_word(dev, PCI_COMMAND, &orig);
-	pci_write_config_word(dev, PCI_COMMAND,
-			      orig ^ PCI_COMMAND_INTX_DISABLE);
+	toggle = orig ^ PCI_COMMAND_INTX_DISABLE;
+	pci_write_config_word(dev, PCI_COMMAND, toggle);
 	pci_read_config_word(dev, PCI_COMMAND, &new);
 
 	/*
-	 * There's no way to protect against hardware bugs or detect them
-	 * reliably, but as long as we know what the value should be, let's
-	 * go ahead and check it.
+	 * Restore initial state.
 	 */
-	if ((new ^ orig) & ~PCI_COMMAND_INTX_DISABLE) {
-		dev_err(&dev->dev, "Command register changed from 0x%x to 0x%x: driver or hardware bug?\n",
-			orig, new);
-	} else if ((new ^ orig) & PCI_COMMAND_INTX_DISABLE) {
-		mask_supported = true;
-		pci_write_config_word(dev, PCI_COMMAND, orig);
-	}
+	pci_write_config_word(dev, PCI_COMMAND, orig);
 
 	pci_cfg_access_unlock(dev);
-	return mask_supported;
+
+	if (new == toggle)
+		return true;
+
+	return false;
 }
 EXPORT_SYMBOL_GPL(pci_intx_mask_supported);
 

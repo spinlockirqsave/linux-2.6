@@ -112,4 +112,6 @@ source "drivers/staging/typec/Kconfig"
 
 source "drivers/staging/vboxvideo/Kconfig"
 
+source "drivers/staging/pcie215/Kconfig"
+
 endif # STAGING
